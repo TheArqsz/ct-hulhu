@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  pull_request:
+    paths:
+      - "**.go"
+      - "**.mod"
+      - "Makefile"
+  workflow_dispatch:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Vet
+        run: go vet ./...
+
+  build:
+    runs-on: ubuntu-latest
+    needs: [lint]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build
+        run: go build ./cmd/ct-hulhu/
+      - name: Test
+        run: go test -race ./...

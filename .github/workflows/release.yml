@@ -1,0 +1,80 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "**.go"
+      - "**.mod"
+      - "Makefile"
+      - ".goreleaser.yaml"
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Vet
+        run: go vet ./...
+      - name: Test
+        run: go test -race ./...
+
+  release:
+    runs-on: ubuntu-latest
+    needs: [test]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate changelog and create tag
+        id: changelog
+        uses: TriPSs/conventional-changelog-action@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          output-file: "CHANGELOG.md"
+          tag-prefix: "v"
+          release-count: 0
+          preset: conventionalcommits
+          git-user-name: "ct-hulhu release bot"
+          git-user-email: "ct-hulhu-release-bot@users.noreply.github.com"
+
+      - name: Setup Go
+        if: ${{ steps.changelog.outputs.skipped == 'false' }}
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run GoReleaser
+        id: goreleaser
+        if: ${{ steps.changelog.outputs.skipped == 'false' }}
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: "~> v2"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GORELEASER_CURRENT_TAG: ${{ steps.changelog.outputs.tag }}
+
+      - name: Update release body with changelog
+        if: ${{ steps.changelog.outputs.skipped == 'false' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.changelog.outputs.tag }}
+          body: ${{ steps.changelog.outputs.clean_changelog }}
+          append_body: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Cleanup tag on release failure
+        if: ${{ failure() && steps.changelog.outputs.skipped == 'false' && steps.changelog.outputs.tag != '' }}
+        run: git push --delete origin "${{ steps.changelog.outputs.tag }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
