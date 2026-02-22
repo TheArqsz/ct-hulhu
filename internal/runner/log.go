@@ -89,7 +89,3 @@ func (l *logger) Success(format string, args ...any) {
 		fmt.Fprintf(os.Stderr, "%s[OK]%s %s\n", colorGreen, colorReset, msg)
 	}
 }
-
-func logWriter() *os.File {
-	return os.Stderr
-}

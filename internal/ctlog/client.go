@@ -107,7 +107,3 @@ func (c *Client) doRequest(ctx context.Context, url string) ([]byte, error) {
 
 	return io.ReadAll(io.LimitReader(resp.Body, maxResponseSize))
 }
-
-func (c *Client) BaseURL() string {
-	return c.baseURL
-}

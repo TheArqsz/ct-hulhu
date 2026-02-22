@@ -184,12 +184,16 @@ func (wp *WorkerPool) fetchWithRetry(ctx context.Context, item workItem, results
 		default:
 		}
 
-		resp, err := wp.fetchSingle(ctx, currentStart, item.end)
+		resp, err := wp.client.GetRawEntries(ctx, currentStart, item.end)
 		if err != nil {
+			wp.errCount.Add(1)
 			dropped := item.end - currentStart + 1
 			wp.droppedEntries.Add(dropped)
+			wp.debug("batch [%d-%d] failed, dropping: %v", currentStart, item.end, err)
 			return
 		}
+
+		wp.successCount.Add(1)
 
 		if len(resp.Entries) == 0 {
 			return
@@ -204,40 +208,6 @@ func (wp *WorkerPool) fetchWithRetry(ctx context.Context, item workItem, results
 
 		currentStart += int64(len(resp.Entries))
 	}
-}
-
-func (wp *WorkerPool) fetchSingle(ctx context.Context, start, end int64) (*GetEntriesResponse, error) {
-	for attempt := 0; attempt <= maxItemRetries; attempt++ {
-		resp, err := wp.client.GetRawEntries(ctx, start, end)
-		if err != nil {
-			wp.errCount.Add(1)
-
-			if attempt == maxItemRetries {
-				wp.debug("batch [%d-%d] failed after %d retries, dropping: %v",
-					start, end, maxItemRetries+1, err)
-				return nil, err
-			}
-
-			backoff := time.Duration(1<<uint(attempt)) * time.Second
-			if backoff > 10*time.Second {
-				backoff = 10 * time.Second
-			}
-
-			wp.debug("batch [%d-%d] attempt %d/%d failed: %v (backoff %v)",
-				start, end, attempt+1, maxItemRetries+1, err, backoff)
-
-			select {
-			case <-time.After(backoff):
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			}
-			continue
-		}
-
-		wp.successCount.Add(1)
-		return resp, nil
-	}
-	return nil, fmt.Errorf("unreachable")
 }
 
 func (wp *WorkerPool) ErrorInfo() string {

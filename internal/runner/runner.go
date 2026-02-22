@@ -47,7 +47,7 @@ func (r *Runner) Run() error {
 	}()
 
 	if r.opts.Update {
-		return updater.Update(ctx, version)
+		return updater.Update(ctx, getVersion())
 	}
 
 	if !r.opts.DisableUpdateCheck && !r.opts.Silent {
@@ -56,8 +56,8 @@ func (r *Runner) Run() error {
 			if err != nil {
 				return
 			}
-			if updater.IsNewer(version, latest) {
-				log.Info("new version available: v%s (current: v%s) - run with -up to update", latest, version)
+			if updater.IsNewer(getVersion(), latest) {
+				log.Info("new version available: v%s (current: v%s) - run with -up to update", latest, getVersion())
 			}
 		}()
 	}
@@ -527,27 +527,18 @@ func (r *Runner) calculateRange(treeSize int64) (start, end int64) {
 	if r.opts.FromEnd {
 		end = treeSize
 		if r.opts.Count > 0 {
-			start = end - r.opts.Count
-			if start < 0 {
-				start = 0
-			}
+			start = max(end-r.opts.Count, 0)
 		} else if r.opts.Start >= 0 {
 			start = r.opts.Start
 		} else {
-			start = treeSize - 10000
-			if start < 0 {
-				start = 0
-			}
+			start = max(0, treeSize-10000)
 		}
 	} else {
 		if r.opts.Start >= 0 {
 			start = r.opts.Start
 		}
 		if r.opts.Count > 0 {
-			end = start + r.opts.Count
-			if end > treeSize {
-				end = treeSize
-			}
+			end = min(start+r.opts.Count, treeSize)
 		} else {
 			end = treeSize
 		}

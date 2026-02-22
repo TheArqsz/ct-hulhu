@@ -85,7 +85,7 @@ func (w *Writer) writeUnique(prefix string, items []string, sanitize bool) {
 
 func (w *Writer) writeDomains(result *ctlog.CertResult) { w.writeUnique("d:", result.Domains, true) }
 func (w *Writer) writeIPs(result *ctlog.CertResult)     { w.writeUnique("i:", result.IPs, false) }
-func (w *Writer) writeEmails(result *ctlog.CertResult)   { w.writeUnique("e:", result.Emails, true) }
+func (w *Writer) writeEmails(result *ctlog.CertResult)  { w.writeUnique("e:", result.Emails, true) }
 
 func (w *Writer) writeCertLine(result *ctlog.CertResult) {
 	key := fmt.Sprintf("c:%s:%d", result.LogURL, result.Index)
@@ -147,7 +147,8 @@ func (w *Writer) writeJSON(result *ctlog.CertResult) {
 		fmt.Fprintf(os.Stderr, "[ERR] json marshal: %v\n", err)
 		return
 	}
-	fmt.Fprintln(w.bw, string(data))
+	w.bw.Write(data)
+	w.bw.WriteByte('\n')
 }
 
 func (w *Writer) Close() error {
@@ -183,6 +184,17 @@ func sanitizeSlice(ss []string) []string {
 }
 
 func Sanitize(s string) string {
+	clean := true
+	for i := 0; i < len(s); i++ {
+		if s[i] < 0x20 || s[i] == 0x1b || s[i] == 0x7f {
+			clean = false
+			break
+		}
+	}
+	if clean {
+		return s
+	}
+
 	var b strings.Builder
 	b.Grow(len(s))
 	i := 0
@@ -193,7 +205,7 @@ func Sanitize(s string) string {
 				continue
 			}
 			switch s[i] {
-			case '[': // CSI sequence: ESC [ params final_byte
+			case '[': // CSI
 				i++
 				for i < len(s) && s[i] >= 0x20 && s[i] <= 0x3f {
 					i++
@@ -201,7 +213,7 @@ func Sanitize(s string) string {
 				if i < len(s) {
 					i++
 				}
-			case ']': // OSC sequence: ESC ] ... (BEL | ESC \)
+			case ']': // OSC
 				i++
 				for i < len(s) && s[i] != 0x07 {
 					if s[i] == 0x1b && i+1 < len(s) && s[i+1] == '\\' {
@@ -213,7 +225,7 @@ func Sanitize(s string) string {
 				if i < len(s) && s[i] == 0x07 {
 					i++
 				}
-			case 'P', 'X', '^', '_': // DCS, SOS, PM, APC: ESC x ... ST (ESC \)
+			case 'P', 'X', '^', '_': // DCS, SOS, PM, APC
 				i++
 				for i < len(s) {
 					if s[i] == 0x1b && i+1 < len(s) && s[i+1] == '\\' {
@@ -225,11 +237,7 @@ func Sanitize(s string) string {
 			}
 			continue
 		}
-		if s[i] < 0x20 {
-			i++
-			continue
-		}
-		if s[i] == 0x7f { // DEL
+		if s[i] < 0x20 || s[i] == 0x7f {
 			i++
 			continue
 		}

@@ -1,8 +1,10 @@
 package runner
 
-import "fmt"
-
-var version = "dev"
+import (
+	"fmt"
+	"os"
+	"runtime/debug"
+)
 
 const banner = `
         __        __          ____         
@@ -13,7 +15,19 @@ const banner = `
                                            
 `
 
+var version = ""
+
+func getVersion() string {
+	if version != "" {
+		return version
+	}
+	if info, ok := debug.ReadBuildInfo(); ok && info.Main.Version != "" && info.Main.Version != "(devel)" {
+		return info.Main.Version
+	}
+	return "dev"
+}
+
 func showBanner() {
-	fmt.Fprint(logWriter(), banner)
-	fmt.Fprintf(logWriter(), "\t%s - CT Log Parser by Arqsz\n\n", version)
+	fmt.Fprint(os.Stderr, banner)
+	fmt.Fprintf(os.Stderr, "\t%s - CT Log Parser by Arqsz\n\n", getVersion())
 }
