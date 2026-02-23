@@ -146,14 +146,14 @@ func ParseOptions() *Options {
 func (o *Options) validate() {
 	var errors []string
 
-	if o.Workers < 1 {
-		errors = append(errors, "-w/--workers must be >= 1")
+	if o.Workers < 1 || o.Workers > 128 {
+		errors = append(errors, "-w/--workers must be between 1 and 128")
 	}
-	if o.ParseWorkers < 0 {
-		errors = append(errors, "-pw/--parse-workers must be >= 0")
+	if o.ParseWorkers < 0 || o.ParseWorkers > 128 {
+		errors = append(errors, "-pw/--parse-workers must be between 0 and 128")
 	}
-	if o.BatchSize < 1 {
-		errors = append(errors, "-bs/--batch-size must be >= 1")
+	if o.BatchSize < 1 || o.BatchSize > 10000 {
+		errors = append(errors, "-bs/--batch-size must be between 1 and 10000")
 	}
 	if o.RateLimit < 0 {
 		errors = append(errors, "-rl/--rate-limit must be >= 0")
@@ -161,8 +161,8 @@ func (o *Options) validate() {
 	if o.Timeout < 1 {
 		errors = append(errors, "-to/--timeout must be >= 1")
 	}
-	if o.Retries < 0 {
-		errors = append(errors, "--retries must be >= 0")
+	if o.Retries < 0 || o.Retries > 10 {
+		errors = append(errors, "--retries must be between 0 and 10")
 	}
 	if o.PollInterval < 1 {
 		errors = append(errors, "-pi/--poll-interval must be >= 1")
