@@ -12,13 +12,16 @@ import (
 	"github.com/TheArqsz/ct-hulhu/internal/ctlog"
 )
 
+const maxDedup = 1_000_000
+
 type Writer struct {
-	mu       sync.Mutex
-	bw       *bufio.Writer
-	closer   io.Closer
-	jsonMode bool
-	fields   string
-	seen     map[string]struct{}
+	mu          sync.Mutex
+	bw          *bufio.Writer
+	closer      io.Closer
+	jsonMode    bool
+	fields      string
+	seen        map[string]struct{}
+	dedupWarned bool
 }
 
 func NewWriter(outputPath string, jsonMode bool, fields string) (*Writer, error) {
@@ -75,7 +78,12 @@ func (w *Writer) writeUnique(prefix string, items []string, sanitize bool) {
 		if _, exists := w.seen[key]; exists {
 			continue
 		}
-		w.seen[key] = struct{}{}
+		if len(w.seen) < maxDedup {
+			w.seen[key] = struct{}{}
+		} else if !w.dedupWarned {
+			w.dedupWarned = true
+			fmt.Fprintf(os.Stderr, "[WRN] deduplication limit reached (%d entries), duplicates may appear in output\n", maxDedup)
+		}
 		if sanitize {
 			item = Sanitize(item)
 		}
@@ -92,7 +100,10 @@ func (w *Writer) writeCertLine(result *ctlog.CertResult) {
 	if _, exists := w.seen[key]; exists {
 		return
 	}
-	w.seen[key] = struct{}{}
+	w.checkDedupLimit()
+	if len(w.seen) < maxDedup {
+		w.seen[key] = struct{}{}
+	}
 
 	domains := Sanitize(strings.Join(result.Domains, ","))
 	fmt.Fprintf(w.bw, "[%s] %s issuer=%s domains=%s\n",
@@ -126,7 +137,10 @@ func (w *Writer) writeJSON(result *ctlog.CertResult) {
 	if _, exists := w.seen[key]; exists {
 		return
 	}
-	w.seen[key] = struct{}{}
+	w.checkDedupLimit()
+	if len(w.seen) < maxDedup {
+		w.seen[key] = struct{}{}
+	}
 
 	jr := JSONResult{
 		Domains:    sanitizeSlice(result.Domains),
@@ -173,6 +187,13 @@ func (w *Writer) Stats() (total int) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	return len(w.seen)
+}
+
+func (w *Writer) checkDedupLimit() {
+	if len(w.seen) >= maxDedup && !w.dedupWarned {
+		w.dedupWarned = true
+		fmt.Fprintf(os.Stderr, "[WRN] deduplication limit reached (%d entries), duplicates may appear in output\n", maxDedup)
+	}
 }
 
 func sanitizeSlice(ss []string) []string {
