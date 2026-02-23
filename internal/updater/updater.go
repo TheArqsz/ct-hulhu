@@ -101,7 +101,8 @@ func IsNewer(current, remote string) bool {
 
 func parseVersion(v string) [3]int {
 	var result [3]int
-	for i, p := range strings.SplitN(strings.TrimPrefix(v, "v"), ".", 3) {
+	cleaned := strings.TrimLeft(v, "v")
+	for i, p := range strings.SplitN(cleaned, ".", 3) {
 		fmt.Sscanf(p, "%d", &result[i])
 	}
 	return result

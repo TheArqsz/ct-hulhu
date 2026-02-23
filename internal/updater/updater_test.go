@@ -24,6 +24,7 @@ func TestParseVersion(t *testing.T) {
 		{"", [3]int{0, 0, 0}},
 		{"1.0", [3]int{1, 0, 0}},
 		{"1", [3]int{1, 0, 0}},
+		{"vv0.1.1", [3]int{0, 1, 1}},
 	}
 
 	for _, tt := range tests {

@@ -57,7 +57,7 @@ func (r *Runner) Run() error {
 				return
 			}
 			if updater.IsNewer(getVersion(), latest) {
-				log.Info("new version available: v%s (current: v%s) - run with -up to update", latest, getVersion())
+				log.Info("new version available: %s (current: %s) - run with -up to update", latest, getVersion())
 			}
 		}()
 	}
