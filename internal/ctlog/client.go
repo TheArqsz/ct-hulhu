@@ -71,6 +71,10 @@ func (c *Client) doRequestWithRetry(ctx context.Context, url string) ([]byte, er
 	for attempt := 0; attempt <= c.retries; attempt++ {
 		if attempt > 0 {
 			backoff := time.Duration(1<<uint(attempt-1)) * time.Second
+
+			if backoff > 30*time.Second {
+				backoff = 30 * time.Second
+			}
 			select {
 			case <-ctx.Done():
 				return nil, ctx.Err()
