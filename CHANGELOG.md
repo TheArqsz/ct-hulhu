@@ -1,3 +1,10 @@
+## [0.1.3](https://github.com/TheArqsz/ct-hulhu/compare/v0.1.2...v0.1.3) (2026-02-23)
+
+
+### Bug Fixes
+
+* Fixed new version wrongly showing up ([8fd704b](https://github.com/TheArqsz/ct-hulhu/commit/8fd704b89f479e06cebd759f76e8e07bc7a5bef1))
+
 ## [0.1.2](https://github.com/TheArqsz/ct-hulhu/compare/v0.1.1...v0.1.2) (2026-02-23)
 
 
