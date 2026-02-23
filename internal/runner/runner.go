@@ -87,8 +87,8 @@ func (r *Runner) listLogs(ctx context.Context) error {
 	if r.opts.JSON {
 		for _, l := range logs {
 			data, err := json.Marshal(map[string]any{
-				"operator":    l.Operator,
-				"description": l.Log.Description,
+				"operator":    output.Sanitize(l.Operator),
+				"description": output.Sanitize(l.Log.Description),
 				"url":         l.Log.FullURL(),
 				"state":       l.Log.CurrentState(),
 				"mmd":         l.Log.MMD,
