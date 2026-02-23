@@ -2,6 +2,7 @@ package ctlog
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -27,6 +28,7 @@ func NewClient(baseURL string, timeout time.Duration, retries int) *Client {
 				MaxIdleConns:        100,
 				MaxIdleConnsPerHost: 100,
 				IdleConnTimeout:     90 * time.Second,
+				TLSClientConfig:     &tls.Config{MinVersion: tls.VersionTLS12},
 			},
 		},
 		retries: retries,
