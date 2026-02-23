@@ -1,6 +1,13 @@
 package runner
 
-import "testing"
+import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/TheArqsz/ct-hulhu/internal/ctlog"
+)
 
 func TestCalculateRange(t *testing.T) {
 	tests := []struct {
@@ -117,5 +124,144 @@ func TestTruncate(t *testing.T) {
 		if got != tt.want {
 			t.Errorf("truncate(%q, %d) = %q, want %q", tt.input, tt.maxLen, got, tt.want)
 		}
+	}
+}
+
+func TestReadLinesFromFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "domains.txt")
+	content := "example.com\n# comment\n  sub.example.com  \n\nother.com\n"
+	os.WriteFile(path, []byte(content), 0o644)
+
+	lines, err := readLinesFromFile(path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(lines) != 3 {
+		t.Fatalf("expected 3 lines, got %d: %v", len(lines), lines)
+	}
+	if lines[0] != "example.com" || lines[1] != "sub.example.com" || lines[2] != "other.com" {
+		t.Errorf("unexpected lines: %v", lines)
+	}
+}
+
+func TestReadLinesFromFile_NotFound(t *testing.T) {
+	_, err := readLinesFromFile("/nonexistent/file.txt")
+	if err == nil {
+		t.Fatal("expected error for nonexistent file")
+	}
+}
+
+func TestLoadSaveProgress(t *testing.T) {
+	dir := t.TempDir()
+	r := &Runner{opts: &Options{StateDir: dir}}
+	logURL := "https://ct.example.com/log/"
+
+	p := r.loadProgress(logURL)
+	if p != nil {
+		t.Fatal("expected nil progress initially")
+	}
+
+	r.saveProgress(logURL, 100000, 50000, 50001)
+
+	p = r.loadProgress(logURL)
+	if p == nil {
+		t.Fatal("expected non-nil progress after save")
+	}
+	if p.LogURL != logURL {
+		t.Errorf("LogURL = %q, want %q", p.LogURL, logURL)
+	}
+	if p.TreeSize != 100000 {
+		t.Errorf("TreeSize = %d, want 100000", p.TreeSize)
+	}
+	if p.LastIndex != 50000 {
+		t.Errorf("LastIndex = %d, want 50000", p.LastIndex)
+	}
+	if p.EntriesDone != 50001 {
+		t.Errorf("EntriesDone = %d, want 50001", p.EntriesDone)
+	}
+}
+
+func TestLoadProgress_CorruptFile(t *testing.T) {
+	dir := t.TempDir()
+	r := &Runner{opts: &Options{StateDir: dir}}
+
+	path := r.stateFilePath("https://ct.example.com/log/")
+	os.WriteFile(path, []byte("not json"), 0o600)
+
+	p := r.loadProgress("https://ct.example.com/log/")
+	if p != nil {
+		t.Error("expected nil for corrupt state file")
+	}
+}
+
+func TestSaveProgress_CreatesDir(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "nested", "state")
+	r := &Runner{opts: &Options{StateDir: dir}}
+
+	r.saveProgress("https://ct.example.com/", 1000, 500, 501)
+
+	data, err := os.ReadFile(r.stateFilePath("https://ct.example.com/"))
+	if err != nil {
+		t.Fatalf("expected state file to exist: %v", err)
+	}
+
+	var progress ctlog.ScrapeProgress
+	if err := json.Unmarshal(data, &progress); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	if progress.LastIndex != 500 {
+		t.Errorf("LastIndex = %d, want 500", progress.LastIndex)
+	}
+}
+
+func TestCollectDomains_FromOptions(t *testing.T) {
+	configureLogger(true, false, true)
+	r := &Runner{opts: &Options{Domain: stringSlice{"example.com", "other.com"}}}
+	domains := r.collectDomains()
+	if len(domains) != 2 {
+		t.Fatalf("expected 2 domains, got %d", len(domains))
+	}
+}
+
+func TestCollectDomains_FromFile(t *testing.T) {
+	configureLogger(true, false, true)
+	dir := t.TempDir()
+	path := filepath.Join(dir, "domains.txt")
+	os.WriteFile(path, []byte("file-domain.com\n"), 0o644)
+
+	r := &Runner{opts: &Options{
+		Domain:     stringSlice{"cli-domain.com"},
+		DomainFile: path,
+	}}
+	domains := r.collectDomains()
+	if len(domains) != 2 {
+		t.Fatalf("expected 2 domains, got %d: %v", len(domains), domains)
+	}
+}
+
+func TestStringSlice_Set(t *testing.T) {
+	var s stringSlice
+	s.Set("a.com, b.com, c.com")
+	if len(s) != 3 {
+		t.Fatalf("expected 3 values, got %d: %v", len(s), s)
+	}
+	if s[0] != "a.com" || s[1] != "b.com" || s[2] != "c.com" {
+		t.Errorf("unexpected values: %v", s)
+	}
+}
+
+func TestStringSlice_SetEmpty(t *testing.T) {
+	var s stringSlice
+	s.Set(",, ,")
+	if len(s) != 0 {
+		t.Errorf("expected 0 values for empty input, got %d: %v", len(s), s)
+	}
+}
+
+func TestStringSlice_String(t *testing.T) {
+	s := stringSlice{"a.com", "b.com"}
+	if s.String() != "a.com,b.com" {
+		t.Errorf("String() = %q", s.String())
 	}
 }
