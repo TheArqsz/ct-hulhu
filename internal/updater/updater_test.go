@@ -203,3 +203,19 @@ func TestFetchExpectedChecksumServerError(t *testing.T) {
 		t.Error("expected error for HTTP 404, got nil")
 	}
 }
+
+func TestIsNewer_DevVersion(t *testing.T) {
+	if !IsNewer("dev", "0.0.1") {
+		t.Error("dev should be older than 0.0.1")
+	}
+	if IsNewer("1.0.0", "1.0.0") {
+		t.Error("same version should not be newer")
+	}
+}
+
+func TestParseVersion_Edge(t *testing.T) {
+	v := parseVersion("v1.2.3-rc1")
+	if v[0] != 1 || v[1] != 2 {
+		t.Errorf("expected major=1 minor=2, got %v", v)
+	}
+}
