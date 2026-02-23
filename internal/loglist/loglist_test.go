@@ -1,6 +1,12 @@
 package loglist
 
-import "testing"
+import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+)
 
 func TestLogMatchesState(t *testing.T) {
 	tests := []struct {
@@ -95,5 +101,85 @@ func TestFilterLogs(t *testing.T) {
 	retired := FilterLogs(logList, "retired")
 	if len(retired) != 1 || retired[0].Log.Description != "Retired" {
 		t.Errorf("expected 1 retired log, got %d", len(retired))
+	}
+}
+
+func TestFetch(t *testing.T) {
+	const logListJSON = `{
+		"version": "3",
+		"operators": [{
+			"name": "TestOp",
+			"email": ["test@example.com"],
+			"logs": [{
+				"description": "TestLog",
+				"log_id": "abc123",
+				"url": "ct.example.com/log/",
+				"mmd": 86400,
+				"state": {"usable": {"timestamp": "2025-01-01T00:00:00Z"}}
+			}]
+		}]
+	}`
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(logListJSON))
+	}))
+	defer srv.Close()
+
+	fetcher := NewFetcher(5 * time.Second)
+	logList, err := fetcher.Fetch(context.Background(), srv.URL)
+	if err != nil {
+		t.Fatalf("Fetch error: %v", err)
+	}
+	if logList.Version != "3" {
+		t.Errorf("Version = %q, want '3'", logList.Version)
+	}
+	if len(logList.Operators) != 1 {
+		t.Fatalf("expected 1 operator, got %d", len(logList.Operators))
+	}
+	if logList.Operators[0].Name != "TestOp" {
+		t.Errorf("operator name = %q", logList.Operators[0].Name)
+	}
+	if len(logList.Operators[0].Logs) != 1 {
+		t.Fatalf("expected 1 log, got %d", len(logList.Operators[0].Logs))
+	}
+	if logList.Operators[0].Logs[0].Description != "TestLog" {
+		t.Errorf("log description = %q", logList.Operators[0].Logs[0].Description)
+	}
+}
+
+func TestFetch_ServerError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer srv.Close()
+
+	fetcher := NewFetcher(5 * time.Second)
+	_, err := fetcher.Fetch(context.Background(), srv.URL)
+	if err == nil {
+		t.Fatal("expected error for HTTP 500")
+	}
+}
+
+func TestFetch_InvalidJSON(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("not json"))
+	}))
+	defer srv.Close()
+
+	fetcher := NewFetcher(5 * time.Second)
+	_, err := fetcher.Fetch(context.Background(), srv.URL)
+	if err == nil {
+		t.Fatal("expected error for invalid JSON")
+	}
+}
+
+func TestNewFetcher(t *testing.T) {
+	f := NewFetcher(10 * time.Second)
+	if f.client == nil {
+		t.Fatal("expected non-nil client")
+	}
+	if f.client.Timeout != 10*time.Second {
+		t.Errorf("timeout = %v, want 10s", f.client.Timeout)
 	}
 }
