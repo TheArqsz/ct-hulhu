@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"runtime/debug"
+	"strings"
 )
 
 const banner = `
@@ -18,16 +19,18 @@ const banner = `
 var version = ""
 
 func getVersion() string {
-	if version != "" {
-		return version
+	v := version
+	if v == "" {
+		if info, ok := debug.ReadBuildInfo(); ok && info.Main.Version != "" && info.Main.Version != "(devel)" {
+			v = info.Main.Version
+		} else {
+			return "dev"
+		}
 	}
-	if info, ok := debug.ReadBuildInfo(); ok && info.Main.Version != "" && info.Main.Version != "(devel)" {
-		return info.Main.Version
-	}
-	return "dev"
+	return strings.TrimPrefix(v, "v")
 }
 
 func showBanner() {
 	fmt.Fprint(os.Stderr, banner)
-	fmt.Fprintf(os.Stderr, "\t%s - CT Log Parser by Arqsz\n\n", getVersion())
+	fmt.Fprintf(os.Stderr, "\tv%s - CT Log Parser by Arqsz\n\n", getVersion())
 }

@@ -265,3 +265,26 @@ func TestStringSlice_String(t *testing.T) {
 		t.Errorf("String() = %q", s.String())
 	}
 }
+
+func TestGetVersion_StripsVPrefix(t *testing.T) {
+	orig := version
+	defer func() { version = orig }()
+
+	version = "v1.2.3"
+	got := getVersion()
+	if got != "1.2.3" {
+		t.Errorf("getVersion() with v-prefixed version = %q, want %q", got, "1.2.3")
+	}
+
+	version = "1.2.3"
+	got = getVersion()
+	if got != "1.2.3" {
+		t.Errorf("getVersion() without v prefix = %q, want %q", got, "1.2.3")
+	}
+
+	version = ""
+	got = getVersion()
+	if got == "" {
+		t.Error("getVersion() should never return empty string")
+	}
+}

@@ -8,6 +8,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -218,5 +219,37 @@ func TestParseVersion_Edge(t *testing.T) {
 	v := parseVersion("v1.2.3-rc1")
 	if v[0] != 1 || v[1] != 2 {
 		t.Errorf("expected major=1 minor=2, got %v", v)
+	}
+}
+
+func TestVersionDisplayFormat_NoDoubleV(t *testing.T) {
+	tests := []struct {
+		name    string
+		current string
+		remote  string
+	}{
+		{"bare versions", "0.1.1", "0.1.2"},
+		{"v-prefixed input to IsNewer", "v0.1.1", "0.1.2"},
+		{"both v-prefixed", "v0.1.1", "v0.1.2"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if !IsNewer(tt.current, tt.remote) {
+				t.Errorf("IsNewer(%q, %q) = false, want true", tt.current, tt.remote)
+			}
+		})
+	}
+
+	tag := "v0.3.1"
+	got := strings.TrimPrefix(tag, "v")
+	if got != "0.3.1" {
+		t.Errorf("TrimPrefix(%q, \"v\") = %q, want \"0.3.1\"", tag, got)
+	}
+
+	tag = "0.3.1"
+	got = strings.TrimPrefix(tag, "v")
+	if got != "0.3.1" {
+		t.Errorf("TrimPrefix(%q, \"v\") = %q, want \"0.3.1\"", tag, got)
 	}
 }
