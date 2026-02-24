@@ -109,6 +109,7 @@ func parseVersion(v string) [3]int {
 }
 
 func Update(ctx context.Context, currentVersion string) error {
+	currentVersion = strings.TrimPrefix(currentVersion, "v")
 	fmt.Fprintf(os.Stderr, "checking for updates...\n")
 
 	latest, err := GetLatestVersion(ctx)
