@@ -1,3 +1,10 @@
+## [0.1.5](https://github.com/TheArqsz/ct-hulhu/compare/v0.1.4...v0.1.5) (2026-02-24)
+
+
+### Bug Fixes
+
+* strip v prefix in getVersion() to prevent double-v in update messages ([4f0aa60](https://github.com/TheArqsz/ct-hulhu/commit/4f0aa60ec2add5a560b00cd020e50f3a6dabe2dc))
+
 ## [0.1.4](https://github.com/TheArqsz/ct-hulhu/compare/v0.1.3...v0.1.4) (2026-02-24)
 
 
